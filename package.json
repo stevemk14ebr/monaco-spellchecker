@@ -1,6 +1,6 @@
 {
   "name": "monaco-spellchecker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A spellchecker for Monaco Editor",
   "main": "lib/spellchecker.cjs.js",
   "module": "lib/spellchecker.es.js",
