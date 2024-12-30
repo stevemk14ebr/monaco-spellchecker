@@ -21,7 +21,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && tsc --lib esnext,dom --emitDeclarationOnly --declaration --declarationDir lib src/spellchecker.ts",
+    "build": "tsc && vite build && tsc --lib esnext,dom --emitDeclarationOnly --declaration --declarationDir lib --target es2015 --module nodenext src/spellchecker.ts",
     "build:demo": "tsc && vite build --mode=demo",
     "prepublishOnly": "npm run build"
   },
