@@ -35,8 +35,7 @@ let _affData = affData
 
 let dictionary = new Typo("en_US", _affData, _wordsData)
 
-const spellchecker = getSpellchecker(editor, {
-  misspelledWordClassName: 'misspelled-word',
+const spellchecker = getSpellchecker(monaco, editor, {
   check: word => {
     return dictionary.check(word)
   },

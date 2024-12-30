@@ -1,15 +1,13 @@
-import type * as monaco from 'monaco-editor'
+import * as Monaco from 'monaco-editor'
 
-type XRange = Pick<monaco.Range, 'startLineNumber' | 'startColumn' | 'endLineNumber' | 'endColumn'>
+type XRange = Pick<Monaco.Range, 'startLineNumber' | 'startColumn' | 'endLineNumber' | 'endColumn'>
 
 interface Spellchecker {
     process: () => void
-    codeActionProvider: monaco.languages.CodeActionProvider
+    codeActionProvider: Monaco.languages.CodeActionProvider
 }
 
 interface Options {
-    misspelledWordClassName: string
-    // generator or function
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => boolean
     suggest: (word: string) => string[]
@@ -27,10 +25,8 @@ function buildCustomEditorId (actionId: string) {
     return `vs.editor.ICodeEditor:1:${actionId}`
 }
 
-function defaultBuildHoverMessage (word: string, range: XRange) {
-    return `"${word}" is misspelled.
-
-[Quick Fix](command:${buildCustomEditorId(quickFixActionId)}?${encodeURIComponent(JSON.stringify({ range }))} "Quick Fix")`
+function defaultBuildHoverMessage (word: string) {
+    return `"${word}" is misspelled.`
 }
 
 function *defaultTokenize (text: string) {
@@ -53,11 +49,10 @@ function *defaultTokenize (text: string) {
  * @param opts - The options for the spellchecker.
  */
 export function getSpellchecker(
-    editor: monaco.editor.IStandaloneCodeEditor,
+    monaco: typeof Monaco,
+    editor: Monaco.editor.IStandaloneCodeEditor,
     opts: Options
 ): Spellchecker {
-
-    const decorations = editor.createDecorationsCollection([])
 
     const { check, suggest, ignore, addWord, buildHoverMessage = defaultBuildHoverMessage, tokenize = defaultTokenize } = opts
 
@@ -65,7 +60,7 @@ export function getSpellchecker(
         const model = editor.getModel()
         if (!model) return
 
-        const newDecorations: monaco.editor.IModelDeltaDecoration[] = []
+        const marks: Monaco.editor.IMarkerData[] = []
 
         const text = model.getValue()
         const lines = text.split('\n')
@@ -85,40 +80,33 @@ export function getSpellchecker(
                         endColumn,
                     }
 
-                    newDecorations.push({
-                        range,
-                        options: {
-                            isWholeLine: false,
-                            inlineClassName: 'misspelled-word',
-                            hoverMessage: {
-                                isTrusted: true,
-                                value: buildHoverMessage(word, range, opts),
-                            },
-                        },
+                    marks.push({
+                        code: word,
+                        startLineNumber: lineIndex + 1,
+                        startColumn,
+                        endLineNumber: lineIndex + 1,
+                        endColumn,
+                        message: buildHoverMessage(word, range, opts),
+                        severity: 2,
                     })
                 }
             }
         })
 
-        decorations.set(newDecorations)
+        monaco.editor.setModelMarkers(model, 'spellchecker', marks)
     }
 
-    const codeActionProvider: monaco.languages.CodeActionProvider = {
-        provideCodeActions: (model, range) => {
-            let decorationRange: monaco.Range | null = null
-
-            for (let i = 0; i < decorations.length; i++) {
-                const r = decorations.getRange(i)
-                if (r?.containsRange(range)) {
-                    decorationRange = r
-                    break
-                }
+    const codeActionProvider: Monaco.languages.CodeActionProvider = {
+        provideCodeActions: function(model, range) {
+            const markers = monaco.editor.getModelMarkers({ owner: 'spellchecker', resource: model.uri })
+            const marker = markers.find(marker => range.containsRange.call(marker, range))
+            if (!marker) {
+                return null
             }
 
-            if (!decorationRange) return null
+            const actions: Monaco.languages.CodeAction[] = []
 
-            const word = model.getValueInRange(decorationRange)
-            const actions: monaco.languages.CodeAction[] = []
+            const word = marker.code as string
 
             suggest(word).forEach(suggestion => {
                 actions.push({
@@ -127,11 +115,12 @@ export function getSpellchecker(
                         id: buildCustomEditorId(correctActionId),
                         title: `Replace with "${suggestion}"`,
                         arguments: [{
-                            range: decorationRange,
+                            range: marker,
                             suggestion: suggestion,
                         }],
                     },
-                    ranges: [decorationRange],
+                    ranges: [marker],
+                    kind: 'quickfix'
                 })
             })
 
@@ -144,7 +133,8 @@ export function getSpellchecker(
                         title,
                         arguments: [word],
                     },
-                    ranges: [decorationRange],
+                    ranges: [marker],
+                    kind: 'quickfix'
                 })
             }
 
@@ -157,14 +147,13 @@ export function getSpellchecker(
                         title,
                         arguments: [word],
                     },
-                    ranges: [decorationRange],
+                    ranges: [marker],
+                    kind: 'quickfix'
                 })
             }
 
-            return {
-                actions,
-                dispose: () => { },
-            }
+
+            return { actions, dispose: () => {} }
         },
     }
 
@@ -228,10 +217,8 @@ export function getSpellchecker(
         })
     }
 
-    // const triggerQuickFixAction =
-
     return {
         process,
-        codeActionProvider
+        codeActionProvider: codeActionProvider
     }
 }
