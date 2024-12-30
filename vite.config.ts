@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-    base: '/',
+export default defineConfig(env => ({
+    base: './',
     server: {
         port: 3000,
         open: true,
     },
-    build: {
+    build: env.mode === 'demo' ? undefined : {
         outDir: 'lib',
         minify: true,
         lib: {
@@ -18,4 +18,4 @@ export default defineConfig({
             }
         }
     },
-});
+}));

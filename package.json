@@ -22,6 +22,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && tsc --lib esnext,dom --emitDeclarationOnly --declaration --declarationDir lib src/spellchecker.ts",
+    "build:demo": "tsc && vite build --mode=demo",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
