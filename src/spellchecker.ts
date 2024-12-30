@@ -34,7 +34,7 @@ function defaultBuildHoverMessage (word: string, range: XRange) {
 }
 
 function *defaultTokenize (text: string) {
-    const wordReg = /\b\w+\b/g
+    const wordReg = /\b[a-zA-Z']+\b/g
     let match: RegExpExecArray | null
 
     while ((match = wordReg.exec(text)) !== null) {

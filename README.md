@@ -77,6 +77,6 @@ Returns an object with:
 - `misspelledWordClassName`: CSS class for highlighting misspelled words.
 - `check`： Function to check if a word is spelled correctly.
 - `suggest`： Function to provide suggestions for a misspelled word.
-- `tokenize`： Optional function to tokenize the text. If not provided, the default behavior is to split the line text by `/\b/`.
+- `tokenize`： Optional function to tokenize the text. If not provided, the default behavior is to match `/\b[a-zA-Z']+\b/g`.
 - `ignore`： Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
 - `addWord`： Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button.
