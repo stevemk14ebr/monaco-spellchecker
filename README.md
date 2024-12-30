@@ -1,6 +1,6 @@
 # monaco-spellchecker
 
-This library provides a simple approach to spellchecking words in the Monaco Editor.
+This library provides a simple approach to spellchecking words in the Monaco Editor. [Try it out!](https://purocean.github.io/monaco-spellchecker/)
 
 ## Installation
 
