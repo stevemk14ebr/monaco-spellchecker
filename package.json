@@ -1,0 +1,35 @@
+{
+  "name": "monaco-spellchecker",
+  "version": "0.0.0",
+  "description": "A spellchecker for Monaco Editor",
+  "main": "lib/spellchecker.cjs.js",
+  "module": "lib/spellchecker.es.js",
+  "types": "lib/spellchecker.d.ts",
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purocean/monaco-spellchecker.git"
+  },
+  "keywords": [
+    "monaco",
+    "spellchecker",
+    "editor"
+  ],
+  "author": "purocean <purocean@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && tsc --lib esnext,dom --emitDeclarationOnly --declaration --declarationDir lib src/spellchecker.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/typo-js": "^1.2.2",
+    "monaco-editor": "^0.52.2",
+    "typescript": "~5.6.2",
+    "typo-js": "^1.2.5",
+    "vite": "^6.0.5"
+  },
+  "dependencies": {}
+}
