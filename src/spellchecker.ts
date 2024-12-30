@@ -35,10 +35,7 @@ function defaultBuildHoverMessage (word: string, range: XRange) {
  * Initialize the spellchecker for the Monaco Editor.
  *
  * @param editor - The Monaco Editor instance.
- * @param check - Function to check if a word is spelled correctly.
- * @param suggest - Function to provide suggestions for a misspelled word.
- * @param ignore - Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
- * @param addWord - Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button.
+ * @param opts - The options for the spellchecker.
  */
 export function getSpellchecker(
     editor: monaco.editor.IStandaloneCodeEditor,
