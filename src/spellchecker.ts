@@ -194,6 +194,7 @@ export function getSpellchecker(
 
             const { range, suggestion } = args
 
+            editor.pushUndoStop()
             editor.executeEdits('spellchecker', [{
                 range,
                 text: suggestion,
