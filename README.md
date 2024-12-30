@@ -75,7 +75,8 @@ Returns an object with:
 ### Options
 
 - `misspelledWordClassName`: CSS class for highlighting misspelled words.
--  `check`： Function to check if a word is spelled correctly.
--  `suggest`： Function to provide suggestions for a misspelled word.
--  `ignore`： Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
--  `addWord`： Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button.
+- `check`： Function to check if a word is spelled correctly.
+- `suggest`： Function to provide suggestions for a misspelled word.
+- `tokenize`： Optional function to tokenize the text. If not provided, the default behavior is to split the line text by `/\b/`.
+- `ignore`： Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
+- `addWord`： Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button.

@@ -9,6 +9,8 @@ interface Spellchecker {
 
 interface Options {
     misspelledWordClassName: string
+    // generator or function
+    tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => boolean
     suggest: (word: string) => string[]
     ignore?: (word: string) => void
@@ -31,6 +33,19 @@ function defaultBuildHoverMessage (word: string, range: XRange) {
 [Quick Fix](command:${buildCustomEditorId(quickFixActionId)}?${encodeURIComponent(JSON.stringify({ range }))} "Quick Fix")`
 }
 
+function *defaultTokenize (text: string) {
+    const wordReg = /\b\w+\b/g
+    let match: RegExpExecArray | null
+
+    while ((match = wordReg.exec(text)) !== null) {
+        const { 0: word, index: pos } = match
+
+        if (word.length < 2) continue
+
+        yield { word, pos }
+    }
+}
+
 /**
  * Initialize the spellchecker for the Monaco Editor.
  *
@@ -44,7 +59,7 @@ export function getSpellchecker(
 
     const decorations = editor.createDecorationsCollection([])
 
-    const { check, suggest, ignore, addWord, buildHoverMessage = defaultBuildHoverMessage } = opts
+    const { check, suggest, ignore, addWord, buildHoverMessage = defaultBuildHoverMessage, tokenize = defaultTokenize } = opts
 
     const process = () => {
         const model = editor.getModel()
@@ -56,11 +71,10 @@ export function getSpellchecker(
         const lines = text.split('\n')
 
         lines.forEach((line, lineIndex) => {
-            const wordReg = /\b\w+\b/g
-            let match: RegExpExecArray | null
-            while ((match = wordReg.exec(line)) !== null) {
-                const word = match[0]
-                const startColumn = match.index + 1
+            const words = tokenize(line)
+
+            for (const { word, pos } of words) {
+                const startColumn = pos + 1
                 const endColumn = startColumn + word.length
 
                 if (!check(word)) {
