@@ -36,6 +36,7 @@ let _affData = affData
 let dictionary = new Typo("en_US", _affData, _wordsData)
 
 const spellchecker = getSpellchecker(monaco, editor, {
+  severity: monaco.MarkerSeverity.Info,
   check: word => {
     return dictionary.check(word)
   },
@@ -78,11 +79,3 @@ function debounce (fn: Function, delay: number) {
 window.addEventListener('resize', () => {
   editor.layout()
 })
-
-const style = document.createElement('style')
-style.textContent = `
-.monaco-editor .misspelled-word {
-    text-decoration: underline wavy #F44336;
-}
-`
-document.head.appendChild(style)

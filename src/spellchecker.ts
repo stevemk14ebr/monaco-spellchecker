@@ -8,6 +8,7 @@ interface Spellchecker {
 }
 
 interface Options {
+    severity?: Monaco.MarkerSeverity
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => boolean
     suggest: (word: string) => string[]
@@ -87,7 +88,7 @@ export function getSpellchecker(
                         endLineNumber: lineIndex + 1,
                         endColumn,
                         message: buildHoverMessage(word, range, opts),
-                        severity: 2,
+                        severity: opts.severity || monaco.MarkerSeverity.Warning,
                     })
                 }
             }
