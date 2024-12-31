@@ -18,7 +18,6 @@ interface Options {
     buildHoverMessage?: (word: string, range: XRange, opts: Options) => string
 }
 
-export const quickFixActionId = 'spellchecker.quickfix'
 export const ignoreActionId = 'spellchecker.ignore'
 export const addWordActionId = 'spellchecker.addWord'
 export const correctActionId = 'spellchecker.correct'
@@ -174,20 +173,6 @@ export function getSpellchecker(
     }
 
     const disposables: Monaco.IDisposable[] = [
-        editor.addAction({
-            id: quickFixActionId,
-            label: 'Spellchecker: Quick Fix',
-            run: (editor, args) => {
-                if (!args || !args.range) return
-
-                editor.setPosition({
-                    lineNumber: args.range.endLineNumber,
-                    column: args.range.endColumn,
-                })
-
-                editor.trigger(owner, 'editor.action.quickFix', null)
-            },
-        }),
         editor.addAction({
             id: correctActionId,
             label: 'Spellchecker: Correct',
