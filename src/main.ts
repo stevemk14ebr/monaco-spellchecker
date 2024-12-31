@@ -47,6 +47,7 @@ const spellchecker = getSpellchecker(monaco, editor, {
     console.log(`Ignoring: ${word}`)
     _wordsData += `\n${word}`
     dictionary = new Typo("en_US", _affData, _wordsData)
+    spellchecker.dispose()
   },
   addWord: (word) => {
     console.log(`Adding: ${word}`)
@@ -58,12 +59,9 @@ const spellchecker = getSpellchecker(monaco, editor, {
 const process = debounce(spellchecker.process, 500)
 
 process()
-
 editor.onDidChangeModelContent(() => {
   process()
 })
-
-monaco.languages.registerCodeActionProvider('markdown', spellchecker.codeActionProvider)
 
 function debounce (fn: Function, delay: number) {
   let timeoutId: number

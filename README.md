@@ -67,6 +67,7 @@ Parameters:
 - `options`: An object with the following properties:
     - `check`： Function to check if a word is spelled correctly.
     - `suggest`： Function to provide suggestions for a misspelled word.
+    - `languageSelector`： Optional Monaco language selector. Default is `*`.
     - `severity`： Optional severity level for the diagnostic. Default is `monaco.MarkerSeverity.Warning`.
     - `tokenize`： Optional function to tokenize the text. If not provided, the default behavior is to match `/\b[a-zA-Z']+\b/g`.
     - `ignore`： Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
@@ -75,4 +76,4 @@ Parameters:
 
 Returns an object with:
 1. `process()`: Re-scans the editor content for misspelled words.
-2. `codeActionProvider`: A Monaco code action provider for fixing misspelled words.
+2. `dispose()`: Disposes the spellchecker.

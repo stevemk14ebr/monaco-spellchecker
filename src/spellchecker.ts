@@ -4,11 +4,12 @@ type XRange = Pick<Monaco.Range, 'startLineNumber' | 'startColumn' | 'endLineNum
 
 interface Spellchecker {
     process: () => void
-    codeActionProvider: Monaco.languages.CodeActionProvider
+    dispose: () => void
 }
 
 interface Options {
     severity?: Monaco.MarkerSeverity
+    languageSelector?: Monaco.languages.LanguageSelector
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => boolean
     suggest: (word: string) => string[]
@@ -54,10 +55,22 @@ export function getSpellchecker(
     editor: Monaco.editor.IStandaloneCodeEditor,
     opts: Options
 ): Spellchecker {
+    const {
+        check,
+        suggest,
+        ignore,
+        addWord,
+        buildHoverMessage = defaultBuildHoverMessage,
+        tokenize = defaultTokenize,
+        languageSelector = '*'
+    } = opts
 
-    const { check, suggest, ignore, addWord, buildHoverMessage = defaultBuildHoverMessage, tokenize = defaultTokenize } = opts
+    const owner = 'spellchecker'
+    let disposed = false
 
     const process = () => {
+        if (disposed) return
+
         const model = editor.getModel()
         if (!model) return
 
@@ -94,12 +107,14 @@ export function getSpellchecker(
             }
         })
 
-        monaco.editor.setModelMarkers(model, 'spellchecker', marks)
+        monaco.editor.setModelMarkers(model, owner, marks)
     }
 
     const codeActionProvider: Monaco.languages.CodeActionProvider = {
         provideCodeActions: function(model, range) {
-            const markers = monaco.editor.getModelMarkers({ owner: 'spellchecker', resource: model.uri })
+            if (disposed) return null
+
+            const markers = monaco.editor.getModelMarkers({ owner: owner, resource: model.uri })
             const marker = markers.find(marker => range.containsRange.call(marker, range))
             if (!marker) {
                 return null
@@ -158,68 +173,78 @@ export function getSpellchecker(
         },
     }
 
-    editor.addAction({
-        id: quickFixActionId,
-        label: 'Spellchecker: Quick Fix',
-        run: (editor, args) => {
-            if (!args || !args.range) return
+    const disposables: Monaco.IDisposable[] = [
+        editor.addAction({
+            id: quickFixActionId,
+            label: 'Spellchecker: Quick Fix',
+            run: (editor, args) => {
+                if (!args || !args.range) return
 
-            editor.setPosition({
-                lineNumber: args.range.endLineNumber,
-                column: args.range.endColumn,
-            })
+                editor.setPosition({
+                    lineNumber: args.range.endLineNumber,
+                    column: args.range.endColumn,
+                })
 
-            editor.trigger('spellchecker', 'editor.action.quickFix', null)
-        },
-    })
+                editor.trigger(owner, 'editor.action.quickFix', null)
+            },
+        }),
+        editor.addAction({
+            id: correctActionId,
+            label: 'Spellchecker: Correct',
+            run: (editor, args) => {
+                if (!args || !args.range || !args.suggestion) return
 
-    editor.addAction({
-        id: correctActionId,
-        label: 'Spellchecker: Correct',
-        run: (editor, args) => {
-            if (!args || !args.range || !args.suggestion) return
+                const model = editor.getModel()
+                if (!model) return
 
-            const model = editor.getModel()
-            if (!model) return
+                const { range, suggestion } = args
 
-            const { range, suggestion } = args
-
-            editor.pushUndoStop()
-            editor.executeEdits('spellchecker', [{
-                range,
-                text: suggestion,
-            }])
-        },
-    })
+                editor.pushUndoStop()
+                editor.executeEdits(owner, [{
+                    range,
+                    text: suggestion,
+                }])
+            },
+        }),
+        monaco.languages.registerCodeActionProvider(languageSelector, codeActionProvider)
+    ]
 
     if (ignore) {
-        editor.addAction({
-            id: ignoreActionId,
-            label: 'Spellchecker: Ignore',
-            run: (_, word) => {
-                if (word) {
-                    ignore(word)
-                    process()
-                }
-            },
-        })
+        disposables.push(
+            editor.addAction({
+                id: ignoreActionId,
+                label: 'Spellchecker: Ignore',
+                run: (_, word) => {
+                    if (word) {
+                        ignore(word)
+                        process()
+                    }
+                },
+            })
+        )
     }
 
     if (addWord) {
-        editor.addAction({
-            id: addWordActionId,
-            label: 'Spellchecker: Add to Dictionary',
-            run: (_, word) => {
-                if (word) {
-                    addWord(word)
-                    process()
-                }
-            },
-        })
+        disposables.push(
+            editor.addAction({
+                id: addWordActionId,
+                label: 'Spellchecker: Add to Dictionary',
+                run: (_, word) => {
+                    if (word) {
+                        addWord(word)
+                        process()
+                    }
+                },
+            })
+        )
     }
 
-    return {
-        process,
-        codeActionProvider: codeActionProvider
+    const dispose = () => {
+        monaco.editor.removeAllMarkers(owner)
+        disposables.forEach(disposable => disposable.dispose())
+        disposables.length = 0
+        disposed = true
     }
+
+    return { process, dispose }
 }
