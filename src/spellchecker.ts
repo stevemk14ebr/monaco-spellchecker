@@ -13,8 +13,8 @@ interface Options {
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => boolean
     suggest: (word: string) => string[]
-    ignore?: (word: string) => void
-    addWord?: (word: string) => void
+    ignore?: (word: string) => (void | Promise<void>)
+    addWord?: (word: string) => (void | Promise<void>)
     buildHoverMessage?: (word: string, range: XRange, opts: Options) => string
 }
 
@@ -214,9 +214,9 @@ export function getSpellchecker(
             editor.addAction({
                 id: ignoreActionId,
                 label: 'Spellchecker: Ignore',
-                run: (_, word) => {
+                run: async (_, word) => {
                     if (word) {
-                        ignore(word)
+                        await ignore(word)
                         process()
                     }
                 },
@@ -229,9 +229,9 @@ export function getSpellchecker(
             editor.addAction({
                 id: addWordActionId,
                 label: 'Spellchecker: Add to Dictionary',
-                run: (_, word) => {
+                run: async (_, word) => {
                     if (word) {
-                        addWord(word)
+                        await addWord(word)
                         process()
                     }
                 },

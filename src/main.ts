@@ -53,6 +53,8 @@ const spellchecker = getSpellchecker(monaco, editor, {
     console.log(`Adding: ${word}`)
     _wordsData += `\n${word}`
     dictionary = new Typo("en_US", _affData, _wordsData)
+
+    return new Promise(r => setTimeout(r, 500))
   }
 })
 
