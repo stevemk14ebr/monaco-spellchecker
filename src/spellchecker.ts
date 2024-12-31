@@ -15,7 +15,7 @@ interface Options {
     suggest: (word: string) => string[]
     ignore?: (word: string) => (void | Promise<void>)
     addWord?: (word: string) => (void | Promise<void>)
-    buildHoverMessage?: (word: string, range: XRange, opts: Options) => string
+    messageBuilder?: (type: 'hover-message' | 'ignore' | 'add-word' | 'apply-suggestion', word: string, range?: XRange, opts?: Options) => string
 }
 
 export const ignoreActionId = 'spellchecker.ignore'
@@ -26,11 +26,22 @@ function buildCustomEditorId (actionId: string) {
     return `vs.editor.ICodeEditor:1:${actionId}`
 }
 
-function defaultBuildHoverMessage (word: string) {
-    return `"${word}" is misspelled.`
+export const defaultMessageBuilder: NonNullable<Options['messageBuilder']> = (type, word) => {
+    switch (type) {
+        case 'hover-message':
+            return `"${word}" is misspelled.`
+        case 'ignore':
+            return `Ignore "${word}"`
+        case 'add-word':
+            return `Add "${word}" to Dictionary`
+        case 'apply-suggestion':
+            return `Replace with "${word}"`
+        default:
+            return ''
+    }
 }
 
-function *defaultTokenize (text: string) {
+export function *defaultTokenize (text: string) {
     const wordReg = /\b[a-zA-Z']+\b/g
     let match: RegExpExecArray | null
 
@@ -59,7 +70,7 @@ export function getSpellchecker(
         suggest,
         ignore,
         addWord,
-        buildHoverMessage = defaultBuildHoverMessage,
+        messageBuilder = defaultMessageBuilder,
         tokenize = defaultTokenize,
         languageSelector = '*'
     } = opts
@@ -99,7 +110,7 @@ export function getSpellchecker(
                         startColumn,
                         endLineNumber: lineIndex + 1,
                         endColumn,
-                        message: buildHoverMessage(word, range, opts),
+                        message: messageBuilder('hover-message', word, range, opts),
                         severity: opts.severity || monaco.MarkerSeverity.Warning,
                     })
                 }
@@ -128,7 +139,7 @@ export function getSpellchecker(
                     title: suggestion,
                     command: {
                         id: buildCustomEditorId(correctActionId),
-                        title: `Replace with "${suggestion}"`,
+                        title: messageBuilder('apply-suggestion', suggestion, marker, opts),
                         arguments: [{
                             range: marker,
                             suggestion: suggestion,
@@ -140,7 +151,7 @@ export function getSpellchecker(
             })
 
             if (ignore) {
-                const title = `Ignore "${word}"`
+                const title = messageBuilder('ignore', word, marker, opts)
                 actions.push({
                     title,
                     command: {
@@ -154,7 +165,7 @@ export function getSpellchecker(
             }
 
             if (addWord) {
-                const title = `Add "${word}" to Dictionary`
+                const title = messageBuilder('add-word', word, marker, opts)
                 actions.push({
                     title,
                     command: {

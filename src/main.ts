@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor'
-import { getSpellchecker } from './spellchecker'
+import { defaultMessageBuilder, getSpellchecker } from './spellchecker'
 import Typo from 'typo-js'
 import affData from 'typo-js/dictionaries/en_US/en_US.aff?raw'
 import wordsData from 'typo-js/dictionaries/en_US/en_US.dic?raw'
@@ -55,7 +55,10 @@ const spellchecker = getSpellchecker(monaco, editor, {
     dictionary = new Typo("en_US", _affData, _wordsData)
 
     return new Promise(r => setTimeout(r, 500))
-  }
+  },
+  messageBuilder (type, word) {
+    return defaultMessageBuilder(type, word).replace('Dictionary', 'Custom Dictionary')
+  },
 })
 
 const process = debounce(spellchecker.process, 500)

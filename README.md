@@ -65,14 +65,16 @@ Parameters:
 - `monaco`: The Monaco instance.
 - `editor`: The Editor instance.
 - `options`: An object with the following properties:
-    - `check`： Function to check if a word is spelled correctly.
-    - `suggest`： Function to provide suggestions for a misspelled word.
-    - `languageSelector`： Optional Monaco language selector. Default is `*`.
-    - `severity`： Optional severity level for the diagnostic. Default is `monaco.MarkerSeverity.Warning`.
-    - `tokenize`： Optional function to tokenize the text. If not provided, the default behavior is to match `/\b[a-zA-Z']+\b/g`.
-    - `ignore`： Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button.
-    - `addWord`： Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button.
-    - `buildHoverMessage`： Optional function to build a hover message for a misspelled word. If not provided, the default behavior is to show the word and suggestions.
+    | Property         | Type                                                                 | Description                                                                                       |
+    |------------------|----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    | `check`          | `(word: string) => boolean`                                          | Function to check if a word is spelled correctly.                                                 |
+    | `suggest`        | `(word: string) => string[]`                                         | Function to provide suggestions for a misspelled word.                                            |
+    | `languageSelector`| `Monaco.languages.LanguageSelector`                                 | Optional Monaco language selector. Default is `*`.                                                |
+    | `severity`       | `Monaco.MarkerSeverity`                                              | Optional severity level for the diagnostic. Default is `monaco.MarkerSeverity.Warning`.           |
+    | `tokenize`       | `(text: string) => { word: string, pos: number }[] \| Iterable<{ word: string, pos: number }>` | Optional function to tokenize the text. If not provided, the default behavior is to match `/\b[a-zA-Z']+\b/g`. |
+    | `ignore`         | `(word: string) => (void \| Promise<void>)`                          | Optional function to ignore a word. If not provided, the default behavior is to hide the ignore button. |
+    | `addWord`        | `(word: string) => (void \| Promise<void>)`                          | Optional function to add a word to the dictionary. If not provided, the default behavior is to hide the add button. |
+    | `messageBuilder` | `(type: 'hover-message' \| 'ignore' \| 'add-word' \| 'apply-suggestion', word: string, range?: XRange, opts?: Options) => string` | Optional function to build message.                                                               |
 
 Returns an object with:
 1. `process()`: Re-scans the editor content for misspelled words.
