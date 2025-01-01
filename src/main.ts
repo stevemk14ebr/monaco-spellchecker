@@ -37,10 +37,12 @@ let dictionary = new Typo("en_US", _affData, _wordsData)
 
 const spellchecker = getSpellchecker(monaco, editor, {
   severity: monaco.MarkerSeverity.Info,
-  check: word => {
+  check: async word => {
+    await new Promise(r => setTimeout(r, 10))
     return dictionary.check(word)
   },
-  suggest: word => {
+  suggest: async word => {
+    await new Promise(r => setTimeout(r, 200))
     return dictionary.suggest(word)
   },
   ignore: (word) => {

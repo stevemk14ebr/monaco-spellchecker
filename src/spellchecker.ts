@@ -11,8 +11,8 @@ interface Options {
     severity?: Monaco.MarkerSeverity
     languageSelector?: Monaco.languages.LanguageSelector
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
-    check: (word: string) => boolean
-    suggest: (word: string) => string[]
+    check: (word: string) => (boolean | Promise<boolean>)
+    suggest: (word: string) => (string[] | Promise<string[]>)
     ignore?: (word: string) => (void | Promise<void>)
     addWord?: (word: string) => (void | Promise<void>)
     messageBuilder?: (type: 'hover-message' | 'ignore' | 'add-word' | 'apply-suggestion', word: string, range?: XRange, opts?: Options) => string
@@ -78,7 +78,7 @@ export function getSpellchecker(
     const owner = 'spellchecker'
     let disposed = false
 
-    const process = () => {
+    const process = async () => {
         if (disposed) return
 
         const model = editor.getModel()
@@ -89,14 +89,26 @@ export function getSpellchecker(
         const text = model.getValue()
         const lines = text.split('\n')
 
-        lines.forEach((line, lineIndex) => {
-            const words = tokenize(line)
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            if (marks.length > 500) {
+                // monaco editor has a limit of 500 markers.
+                // https://github.com/microsoft/monaco-editor/issues/2042
+                break
+            }
+
+            const words = tokenize(lines[lineIndex])
 
             for (const { word, pos } of words) {
                 const startColumn = pos + 1
                 const endColumn = startColumn + word.length
 
-                if (!check(word)) {
+                const result = check(word)
+
+                const isCorrect = typeof result === 'boolean' ? result : await result
+
+                if (disposed) return
+
+                if (!isCorrect) {
                     const range = {
                         startLineNumber: lineIndex + 1,
                         startColumn,
@@ -115,26 +127,29 @@ export function getSpellchecker(
                     })
                 }
             }
-        })
+        }
 
         monaco.editor.setModelMarkers(model, owner, marks)
     }
 
     const codeActionProvider: Monaco.languages.CodeActionProvider = {
-        provideCodeActions: function(model, range) {
+        provideCodeActions: async function(model, range, _context, token) {
             if (disposed) return null
 
             const markers = monaco.editor.getModelMarkers({ owner: owner, resource: model.uri })
             const marker = markers.find(marker => range.containsRange.call(marker, range))
-            if (!marker) {
-                return null
-            }
+            if (!marker) return null
 
             const actions: Monaco.languages.CodeAction[] = []
 
             const word = marker.code as string
 
-            suggest(word).forEach(suggestion => {
+            const result = suggest(word)
+            const list = await Promise.resolve(result)
+
+            if (token.isCancellationRequested) return null
+
+            list.forEach(suggestion => {
                 actions.push({
                     title: suggestion,
                     command: {
