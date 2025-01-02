@@ -8,13 +8,10 @@ This library provides a simple approach to spellchecking words in the Monaco Edi
 npm install monaco-spellchecker
 ```
 
-## Dictionary Setup Using typo-js
+## Dictionary Library
 
 Please install the [typo-js](https://github.com/cfinke/Typo.js) library if you want to use it as a dictionary for spellchecking.
-
-```bash
-npm install typo-js
-```
+Or use [hunspell-asm](https://github.com/kwonoj/hunspell-asm) + Web Worker for performance. [For instance, see here](https://github.com/purocean/yank-note-extension/tree/main/packages/extension-spellchecker)
 
 ## Example
 
