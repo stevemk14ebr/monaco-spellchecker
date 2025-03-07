@@ -3,11 +3,12 @@ import { defaultMessageBuilder, getSpellchecker } from './spellchecker'
 import Typo from 'typo-js'
 import affData from 'typo-js/dictionaries/en_US/en_US.aff?raw'
 import wordsData from 'typo-js/dictionaries/en_US/en_US.dic?raw'
+import { Mutex } from 'async-mutex';
 
-const container = document.querySelector<HTMLDivElement>('#app')!
+const container = document.querySelector<HTMLDivElement>('#app')!;
 
-container.style.width = '100vw'
-container.style.height = '100vh'
+container.style.width = '100vw';
+container.style.height = '100vh';
 
 const value = `# My English Essay
 
@@ -28,59 +29,52 @@ Integrating the Monaco Editor into your web application can greatly enhance the 
 const editor = monaco.editor.create(container, {
   value,
   language: 'markdown'
-})
+});
 
-let _wordsData = wordsData
-let _affData = affData
+let _wordsData = wordsData;
+let _affData = affData;
 
-let dictionary = new Typo("en_US", _affData, _wordsData)
+// consider nspell instead if performance is an issue
+let dictionary = new Typo("en_US", _affData, _wordsData);
+let dictionaryMutex = new Mutex();
 
+// be sure to handle the dispose of the spellchecker when used in a react component!
 const spellchecker = getSpellchecker(monaco, editor, {
   severity: monaco.MarkerSeverity.Info,
   check: async word => {
-    await new Promise(r => setTimeout(r, 10))
-    return dictionary.check(word)
+    return await dictionaryMutex.runExclusive(async () => {
+      return dictionary.check(word)
+    });
   },
   suggest: async word => {
-    await new Promise(r => setTimeout(r, 200))
-    return dictionary.suggest(word)
+    return await dictionaryMutex.runExclusive(async () => {
+      return dictionary.suggest(word);
+    });
   },
-  ignore: (word) => {
+  ignore: async word => {
     console.log(`Ignoring: ${word}`)
-    _wordsData += `\n${word}`
-    dictionary = new Typo("en_US", _affData, _wordsData)
-    spellchecker.dispose()
+    await dictionaryMutex.runExclusive(async () => {
+      _wordsData += `\n${word}`
+      dictionary = new Typo("en_US", _affData, _wordsData)
+    });
   },
-  addWord: (word) => {
+  addWord: async word => {
     console.log(`Adding: ${word}`)
-    _wordsData += `\n${word}`
-    dictionary = new Typo("en_US", _affData, _wordsData)
-
-    return new Promise(r => setTimeout(r, 500))
+    await dictionaryMutex.runExclusive(async () => {
+      _wordsData += `\n${word}`
+      dictionary = new Typo("en_US", _affData, _wordsData)
+    });
   },
-  messageBuilder (type, word) {
+  messageBuilder(type, word) {
     return defaultMessageBuilder(type, word).replace('Dictionary', 'Custom Dictionary')
   },
-})
-
-const process = debounce(spellchecker.process, 500)
-
-process()
-editor.onDidChangeModelContent(() => {
-  process()
-})
-
-function debounce (fn: Function, delay: number) {
-  let timeoutId: number
-  return (...args: any) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => {
-      fn(...args)
-    }, delay)
-  }
-}
+});
 
 // Adjust the editor layout when the window is resized
 window.addEventListener('resize', () => {
-  editor.layout()
-})
+  editor.layout();
+});
+
+window.addEventListener('unload', () => {
+  spellchecker.dispose();
+});

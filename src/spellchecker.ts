@@ -10,6 +10,7 @@ interface Spellchecker {
 interface Options {
     severity?: Monaco.MarkerSeverity
     languageSelector?: Monaco.languages.LanguageSelector
+    debounceInterval?: number
     tokenize?: (text: string) => { word: string, pos: number }[] | Iterable<{ word: string, pos: number }>
     check: (word: string) => (boolean | Promise<boolean>)
     suggest: (word: string) => (string[] | Promise<string[]>)
@@ -18,12 +19,12 @@ interface Options {
     messageBuilder?: (type: 'hover-message' | 'ignore' | 'add-word' | 'apply-suggestion', word: string, range?: XRange, opts?: Options) => string
 }
 
-export const ignoreActionId = 'spellchecker.ignore'
-export const addWordActionId = 'spellchecker.addWord'
-export const correctActionId = 'spellchecker.correct'
+export const ignoreActionId = 'spellchecker.ignore';
+export const addWordActionId = 'spellchecker.addWord';
+export const correctActionId = 'spellchecker.correct';
 
-function buildCustomEditorId (actionId: string) {
-    return `vs.editor.ICodeEditor:1:${actionId}`
+function buildCommandIdForEditor(actionId: string, editorId: string) {
+    return `${editorId}:${actionId}`;
 }
 
 export const defaultMessageBuilder: NonNullable<Options['messageBuilder']> = (type, word) => {
@@ -54,6 +55,16 @@ export function *defaultTokenize (text: string) {
     }
 }
 
+const debounce = (callback: (...args: any) => any, wait: number) => {
+    let timeoutId: number | undefined = undefined;
+    return (...args: any) => {
+        window.clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(() => {
+            callback(...args);
+        }, wait);
+    };
+};
+
 /**
  * Initialize the spellchecker for the Monaco Editor.
  *
@@ -72,41 +83,44 @@ export function getSpellchecker(
         addWord,
         messageBuilder = defaultMessageBuilder,
         tokenize = defaultTokenize,
-        languageSelector = '*'
-    } = opts
+        languageSelector = '*',
+        debounceInterval = 500,
+    } = opts;
 
-    const owner = 'spellchecker'
-    let disposed = false
+    const owner = 'spellchecker';
+    let disposed = false;
+    const editorId = editor.getId();
 
-    const process = async () => {
-        if (disposed) return
+    const process = debounce(async () => {
+        if (disposed) {
+            return;
+        }
 
         const model = editor.getModel()
-        if (!model) return
+        if (!model) {
+            return;
+        }
 
-        const marks: Monaco.editor.IMarkerData[] = []
+        const marks: Monaco.editor.IMarkerData[] = [];
 
-        const text = model.getValue()
-        const lines = text.split('\n')
+        const text = model.getValue();
+        const lines = text.split('\n');
 
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             if (marks.length > 500) {
                 // monaco editor has a limit of 500 markers.
                 // https://github.com/microsoft/monaco-editor/issues/2042
-                break
+                break;
             }
 
-            const words = tokenize(lines[lineIndex])
+            const words = tokenize(lines[lineIndex]);
 
             for (const { word, pos } of words) {
-                const startColumn = pos + 1
-                const endColumn = startColumn + word.length
+                const startColumn = pos + 1;
+                const endColumn = startColumn + word.length;
 
-                const result = check(word)
-
+                const result = check(word);
                 const isCorrect = typeof result === 'boolean' ? result : await result
-
-                if (disposed) return
 
                 if (!isCorrect) {
                     const range = {
@@ -114,7 +128,7 @@ export function getSpellchecker(
                         startColumn,
                         endLineNumber: lineIndex + 1,
                         endColumn,
-                    }
+                    };
 
                     marks.push({
                         code: word,
@@ -124,36 +138,40 @@ export function getSpellchecker(
                         endColumn,
                         message: messageBuilder('hover-message', word, range, opts),
                         severity: opts.severity || monaco.MarkerSeverity.Warning,
-                    })
+                    });
                 }
             }
         }
 
-        monaco.editor.setModelMarkers(model, owner, marks)
-    }
+        monaco.editor.setModelMarkers(model, owner, marks);
+    }, debounceInterval);
 
     const codeActionProvider: Monaco.languages.CodeActionProvider = {
         provideCodeActions: async function(model, range, _context, token) {
-            if (disposed) return null
+            if (disposed) {
+                return null;
+            }
 
             const markers = monaco.editor.getModelMarkers({ owner: owner, resource: model.uri })
             const marker = markers.find(marker => range.containsRange.call(marker, range))
-            if (!marker) return null
+            if (!marker) {
+                return null;
+            }
 
-            const actions: Monaco.languages.CodeAction[] = []
+            const actions: Monaco.languages.CodeAction[] = [];
 
-            const word = marker.code as string
+            const word = marker.code as string;
+            const list = await suggest(word);
 
-            const result = suggest(word)
-            const list = await Promise.resolve(result)
-
-            if (token.isCancellationRequested) return null
+            if (token.isCancellationRequested){
+                return null;
+            }
 
             list.forEach(suggestion => {
                 actions.push({
                     title: suggestion,
                     command: {
-                        id: buildCustomEditorId(correctActionId),
+                        id: buildCommandIdForEditor(correctActionId, editorId),
                         title: messageBuilder('apply-suggestion', suggestion, marker, opts),
                         arguments: [{
                             range: marker,
@@ -163,20 +181,20 @@ export function getSpellchecker(
                     ranges: [marker],
                     kind: 'quickfix'
                 })
-            })
+            });
 
             if (ignore) {
                 const title = messageBuilder('ignore', word, marker, opts)
                 actions.push({
                     title,
                     command: {
-                        id: buildCustomEditorId(ignoreActionId),
+                        id: buildCommandIdForEditor(correctActionId, editorId),
                         title,
                         arguments: [word],
                     },
                     ranges: [marker],
                     kind: 'quickfix'
-                })
+                });
             }
 
             if (addWord) {
@@ -184,15 +202,14 @@ export function getSpellchecker(
                 actions.push({
                     title,
                     command: {
-                        id: buildCustomEditorId(addWordActionId),
+                        id: buildCommandIdForEditor(correctActionId, editorId),
                         title,
                         arguments: [word],
                     },
                     ranges: [marker],
                     kind: 'quickfix'
-                })
+                });
             }
-
 
             return { actions, dispose: () => {} }
         },
@@ -217,7 +234,10 @@ export function getSpellchecker(
                 }])
             },
         }),
-        monaco.languages.registerCodeActionProvider(languageSelector, codeActionProvider)
+        monaco.languages.registerCodeActionProvider(languageSelector, codeActionProvider),
+        editor.onDidChangeModelContent(() => {
+            process();
+        })
     ]
 
     if (ignore) {
@@ -257,5 +277,6 @@ export function getSpellchecker(
         disposed = true
     }
 
+    process();
     return { process, dispose }
 }
